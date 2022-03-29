@@ -29,14 +29,16 @@ onresize();
 window.addEventListener("resize", onresize);
 
 let mouse = [0, 0];
-let verts = [[200,600], [400,200], [500,500]];
+let verts = [[336.906982421875,628.26513671875],[91.13516235351562,118.673095703125],[591.4407958984375,144.5498046875],[611.8473510742188,645.4441528320312],[100.4229736328125,424.5943603515625]];
+(window as any).verts = verts;;
+let selection = -1;
 window.addEventListener("pointermove", e => {
   const x = e.clientX;
   const y = e.clientY;
   mouse = [x, y];
-  if (mouseDown)  {
-  // set last vertex to [x, y]
-  verts[verts.length - 1] = [x, y];
+  if (mouseDown && selection >= 0) {
+    // set last vertex to [x, y]
+    verts[selection] = [x, y];
   }
 });
 let mouseDown = false;
@@ -44,15 +46,36 @@ window.addEventListener("pointerdown", e => {
   mouseDown = true;
   const x = e.clientX;
   const y = e.clientY;
-  verts.push([x, y]);
+  let r = 20;
+  let vert = verts.find(v => {
+    const dx = x - v[0];
+    const dy = y - v[1];
+    return dx * dx + dy * dy < r * r;
+  });
+  if (vert) {
+    selection = verts.indexOf(vert);
+  } else {
+    verts.push([x, y]);
+    selection = verts.length - 1;
+  }
 });
-window.addEventListener("pointerup", e => {
+window.addEventListener("pointerup", () => {
   mouseDown = false;
-  const x = e.clientX;
-  const y = e.clientY;
+  // const x = e.clientX;
+  // const y = e.clientY;
   // set last vertex to [x, y]
-  verts[verts.length - 1] = [x, y];
-})
+  //verts[selection] = [x, y];
+});
+
+// delete selection
+window.addEventListener("keydown", e => {
+  if (e.key === "Backspace") {
+    if (selection >= 0) {
+      verts.splice(selection, 1);
+      selection = selection > 0 ? selection - 1 : -1;
+    }
+  }
+});
 
 const gl = canvas.getContext("webgl")!;
 gl.getExtension("OES_standard_derivatives");
@@ -69,6 +92,7 @@ function render() {
     numVerts: verts.length,
     mouse: mouse,
     rounding: .4,
+    selection: selection
   };
 
   gl.viewport(0, 0, canvas.width, canvas.height);

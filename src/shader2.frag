@@ -10,6 +10,7 @@ varying vec2 v_texcoord;
 
 uniform vec2 verts[100];
 uniform int numVerts;
+uniform int selection;
 uniform float rounding;
 uniform vec2 mouse;
 
@@ -145,7 +146,8 @@ vec4 drawVerts() {
     float dist = length(pos.xy * vec2(aspect, 1.));
     float r = 0.01;
     float aa = fwidth(dist);
-    a += 1. - smoothstep(r - aa, r + aa, dist);
+    float mul = selection == i ? 1. : .38;
+    a += (1. - smoothstep(r - aa, r + aa, dist)) * mul;
   }
   // draw a 1px line between verts
   for (int i = 0; i < 98; i++) {
@@ -183,15 +185,18 @@ vec4 drawVerts() {
     // a += (1. - smoothstep(r - aa, r + aa, dist)) * .12;
 
     float beta = pi - alpha/2.;
-    float r_outer = rounding / sin(beta);
+
+    vec2 vv = posB - posA;
+    vec2 ww = posC - posB;
+    float clampedRounding = min(min(length(vv)/2., length(ww)/2.), rounding);
+
+    float r_outer = clampedRounding / sin(beta);
     float r_inner = r_outer * -cos(beta);
     vec2 cr = perp * r_outer; 
     // draw circle onion
     r = 0.001;
     vec3 dis_gra = sdgCircleOnion(posB + cr, r_inner, r);
     // a += (1. - smoothstep(r - aa, r + aa, dis_gra.x)) * .12;
-
-    vec2 cr2 = (posB + cr);
     
     float pi4 = pi/4.;
     float gamma = -atan(perp.y, perp.x);
@@ -200,18 +205,8 @@ vec4 drawVerts() {
 
     // squish ratio
     // overall scale
-    
-    float s1 = 1./(r_inner);
-    mat2 scale = mat2(s1, 0., 0., s1);
-    float sx = tan(alpha/2.);
 
-    // TODO: constants somehow related to rounding parameter
-    // where rounding is distance from posB to the edge of the circle
-    float sp = 1.;
-    mat2 squeeze = mat2(1., 0., 0., sx);
-    cr2 = posB + perp*r_outer;
-
-    squeeze = mat2(1., 0., 0., 1.);
+    vec2 cr2 = posB + perp*r_outer;
 
     // compensate total scale
     // mat2 scale2 = mat2(r_outer, 0., 0., r_outer);
@@ -220,8 +215,9 @@ vec4 drawVerts() {
     float m = pi/alpha * 2.;
     float delta = atan(v.y, v.x);
     mat2 rot3 = mat2(cos(alpha/2.), sin(alpha/2.), -sin(alpha/2.), cos(alpha/2.));
-    // cr2 = scale * squeeze * rot * rot2 * cr2;
-    cr2 = scale * squeeze * rot * rot3 * cr2;
+    float s1 = 1./(r_inner);
+    mat2 scale = mat2(s1, 0., 0., s1);
+    cr2 = scale * rot * rot3 * cr2;
     
     // float m = pi/alpha + 2.;
     float theta = atan(cr2.y, cr2.x);
