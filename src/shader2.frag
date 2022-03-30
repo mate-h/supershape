@@ -169,13 +169,15 @@ vec4 drawVerts() {
     }
     vec2 pos = getPos(verts[i]);
     float dist = length(pos.xy * vec2(aspect, 1.));
-    float r = 0.01;
+    float r = 0.006;
     float aa = fwidth(dist);
     float mul = selection == i ? 1. : .38;
     a += (1. - smoothstep(r - aa, r + aa, dist)) * mul;
   }
   // draw a 1px line between verts
   float mask = 0.;
+  float blueLine = 0.;
+  float redLine = 0.;
   for (int i = 0; i < 98; i++) {
     if (i >= numVerts - 2) {
       break;
@@ -258,6 +260,11 @@ vec4 drawVerts() {
 
     threshold = 0.;
     aa = fwidth(x);
+
+    //1px line at x = 0.
+    float dist3 = abs(x) - 0.002 / r_inner;
+    blueLine += (1. - smoothstep(threshold - aa, threshold + aa, dist3)) * mask3;
+
     float shapeRes = (smoothstep(threshold - aa, threshold + aa, x));
     if (cross(v, w) > 0.) {
       mask += (1. - shapeRes) * mask3;
@@ -268,10 +275,9 @@ vec4 drawVerts() {
     float x2 = res.y * .1 * 1./r_outer + res.x - length(cr2);
     if (cross(v, w) > 0.) {
       x2 = -res.y * .1 * 1./r_outer + res.x - length(cr2);
-      a += (1. - smoothstep(threshold - aa, threshold + aa, x2)) * .06 * mask2;
-    } else {
-      a += (smoothstep(threshold - aa, threshold + aa, x2)) * .06 * mask2;
     }
+    dist3 = abs(x2) - 0.004 / r_outer;
+    redLine += (1. - smoothstep(threshold - aa, threshold + aa, dist3)) * mask2;
     aa = fwidth(x2);
     
     // a += diff/pi;
@@ -281,9 +287,20 @@ vec4 drawVerts() {
   float d = 1. - sdPolygon(p, u_resolution.xy);
   float threshold = 1.;
   float aa = fwidth(d);
-  a += (smoothstep(threshold - aa, threshold + aa, d)) * .12;// * mask;
+  a += (smoothstep(threshold - aa, threshold + aa, d)) * .03;// * mask;
   // a += d;
-  return vec4(vec3(0.), a) + vec4(vec3(0.), mask) * .54;
+  // #3B5FD7
+  vec3 blue = vec3(.2313, .3725, .8431);
+  // #E14747
+  vec3 red = vec3(.8823, 0.2784, 0.2784);
+
+  vec4 outColor = vec4(0.);
+  outColor += vec4(blue * blueLine, blueLine);
+  redLine = clamp(redLine - blueLine, 0., 1.) * .12;
+  outColor += vec4(red * redLine, redLine);
+  outColor += vec4(vec3(0.), a); 
+  //outColor += vec4(vec3(0.), mask) * .54;
+  return outColor;
 }
 
 void main() {
