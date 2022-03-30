@@ -240,7 +240,7 @@ vec4 drawVerts() {
     float theta = atan(cr2.y, cr2.x);
     vec2 res = shape(theta, m);
     float x = res.x - length(cr2);
-    float x2 = res.y * .1 + res.x - length(cr2);
+    
     float threshold = 0.;
     
     vec2 cr3 = rot * (posB + perp*r_outer);
@@ -264,8 +264,16 @@ vec4 drawVerts() {
     } else {
       mask += shapeRes * mask2 * mask3;
     }
+
+    float x2 = res.y * .1 * 1./r_outer + res.x - length(cr2);
+    if (cross(v, w) > 0.) {
+      x2 = -res.y * .1 * 1./r_outer + res.x - length(cr2);
+      a += (1. - smoothstep(threshold - aa, threshold + aa, x2)) * .06 * mask2;
+    } else {
+      a += (smoothstep(threshold - aa, threshold + aa, x2)) * .06 * mask2;
+    }
     aa = fwidth(x2);
-    // a += (smoothstep(threshold - aa, threshold + aa, x2)) * mask2;
+    
     // a += diff/pi;
   }
   // a = 0.;
@@ -273,7 +281,7 @@ vec4 drawVerts() {
   float d = 1. - sdPolygon(p, u_resolution.xy);
   float threshold = 1.;
   float aa = fwidth(d);
-  // mask = (smoothstep(threshold - aa, threshold + aa, d)) * mask;
+  a += (smoothstep(threshold - aa, threshold + aa, d)) * .12;// * mask;
   // a += d;
   return vec4(vec3(0.), a) + vec4(vec3(0.), mask) * .54;
 }
