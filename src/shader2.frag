@@ -12,6 +12,7 @@ uniform vec2 verts[100];
 uniform int numVerts;
 uniform int selection;
 uniform float rounding;
+uniform float exponent;
 uniform vec2 mouse;
 
 
@@ -113,9 +114,8 @@ float map(float x, float a, float b, float c, float d) {
 
 // distance function to the supershape
 vec2 shape(float theta, float m) {  
-  float nn = 5.;
-  float n2 = nn;
-  float n3 = nn;
+  float n2 = exponent;
+  float n3 = exponent;
 
   // curvature slope is calculated from a series of datapoints 
   // where the approximate integral of kappa(theta) minimizes the curvature
@@ -123,7 +123,7 @@ vec2 shape(float theta, float m) {
   // FindFit[data,a*x^2, {a},x] (Wolfram Alpha)
   // slope {a->0.0625148} 
   float curvatureSlope = 0.0625148;
-  float n1 = curvatureSlope * pow(m, 2.) * nn;
+  float n1 = curvatureSlope * pow(m, 2.) * exponent;
 
   // calculate the supershape size from n1
   float a = 1.;
@@ -276,7 +276,7 @@ vec4 drawVerts() {
     if (cross(v, w) > 0.) {
       x2 = -res.y * .1 * 1./r_outer + res.x - length(cr2);
     }
-    dist3 = abs(x2) - 0.004 / r_outer;
+    dist3 = abs(x2) - 0.0005 / r_outer * exponent / r_inner;
     redLine += (1. - smoothstep(threshold - aa, threshold + aa, dist3)) * mask2;
     aa = fwidth(x2);
     

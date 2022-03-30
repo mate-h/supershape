@@ -12,6 +12,8 @@
     "vite": "^2.8.0"
   },
   "dependencies": {
+    "@types/dat.gui": "^0.7.7",
+    "dat.gui": "^0.7.9",
     "twgl.js": "^4.22.0",
     "vite-plugin-glsl": "^0.1.1"
   }

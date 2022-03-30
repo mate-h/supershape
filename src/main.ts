@@ -3,6 +3,7 @@ import * as twgl from "twgl.js";
 import vs from "./shader.vert";
 // import fs from "./shader.frag";
 import fs2 from "./shader2.frag";
+import dat from "dat.gui";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
@@ -25,6 +26,15 @@ function onresize() {
   canvas.style.height = h + "px";
 }
 
+const parameters = {
+  rounding: 1,
+  exponent: 5,
+}
+const gui = new dat.GUI();
+gui.add(parameters, "rounding", 0, 1).step(.01);
+gui.add(parameters, "exponent", 1, 13).step(.05);
+
+
 onresize();
 window.addEventListener("resize", onresize);
 
@@ -37,12 +47,12 @@ window.addEventListener("pointermove", e => {
   const y = e.clientY;
   mouse = [x, y];
   if (mouseDown && selection >= 0) {
-    // set last vertex to [x, y]
+    // set last verrtex to [x, y]
     verts[selection] = [x, y];
   }
 });
 let mouseDown = false;
-window.addEventListener("pointerdown", e => {
+canvas.addEventListener("pointerdown", e => {
   mouseDown = true;
   const x = e.clientX;
   const y = e.clientY;
@@ -91,7 +101,8 @@ function render() {
     verts: verts.flat(),
     numVerts: verts.length,
     mouse: mouse,
-    rounding: 4,
+    rounding: parameters.rounding,
+    exponent: parameters.exponent,
     selection: selection
   };
 
