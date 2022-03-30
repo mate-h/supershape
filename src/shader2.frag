@@ -69,6 +69,40 @@ vec3 sdgCircleOnion(in vec2 p, in float cr, in float r) {
   return vec3(abs(dis_gra.x) - r, sign(dis_gra.x) * dis_gra.yz);
 }
 
+float sdPolygon(in vec2 p, vec2 s) {
+    float d = dot(p-verts[0]/s,p-verts[0]/s);
+    float res = 1.0;
+    for( int i=0; i<99; i++ ) {
+        if (i > numVerts - 2) {
+          // distance
+          vec2 e = verts[i]/s - verts[0]/s;
+          vec2 w =    p - verts[0]/s;
+          vec2 b = w - e*clamp( dot(w,e)/dot(e,e), 0.0, 1.0 );
+          d = min( d, dot(b,b) );
+
+          // winding number from http://geomalgorithms.com/a03-_inclusion.html
+          bvec3 cond = bvec3( p.y>=verts[0].y/s.y, 
+                              p.y <verts[i].y/s.y, 
+                              e.x*w.y>e.y*w.x );
+          if( all(cond) || all(not(cond)) ) res=-res;  
+          break;
+        }
+        // distance
+        vec2 e = verts[i]/s - verts[i + 1]/s;
+        vec2 w =    p - verts[i + 1]/s;
+        vec2 b = w - e*clamp( dot(w,e)/dot(e,e), 0.0, 1.0 );
+        d = min( d, dot(b,b) );
+
+        // winding number from http://geomalgorithms.com/a03-_inclusion.html
+        bvec3 cond = bvec3( p.y>=verts[i + 1].y/s.y, 
+                            p.y <verts[i].y/s.y, 
+                            e.x*w.y>e.y*w.x );
+        if( all(cond) || all(not(cond)) ) res=-res;  
+    }
+    
+    return res*sqrt(d);
+}
+
 float lerp(float a, float b, float t) {
   return a + t * (b - a);
 }
@@ -122,16 +156,7 @@ vec2 shape(float theta, float m) {
   // abs(pow(r, 2) + 2*pow(d1, 2) - r*d2)/pow(pow(r, 2) + pow(d1, 2), 1.5)
   float kappa = abs(pow(r, 2.) + 2. * pow(d1, 2.) - r * d2) / pow(pow(r, 2.) + pow(d1, 2.), 1.5);
 
-  // plot kappa as distance from signed distance
-  float scaleKappa = .2;
-  
-  // polar coordinates to unwrapped cartiesian coordinates
-  // create signed distance from screen bottom to r
-
-  float d = r;
-  float dk = (r + kappa * scaleKappa);
-
-  return vec2(d, dk);
+  return vec2(r, kappa);
 }
 
 
@@ -150,6 +175,7 @@ vec4 drawVerts() {
     a += (1. - smoothstep(r - aa, r + aa, dist)) * mul;
   }
   // draw a 1px line between verts
+  float mask = 0.;
   for (int i = 0; i < 98; i++) {
     if (i >= numVerts - 2) {
       break;
@@ -198,22 +224,13 @@ vec4 drawVerts() {
     vec3 dis_gra = sdgCircleOnion(posB + cr, r_inner, r);
     // a += (1. - smoothstep(r - aa, r + aa, dis_gra.x)) * .12;
     
-    float pi4 = pi/4.;
     float gamma = -atan(perp.y, perp.x);
     mat2 rot = mat2(cos(gamma), sin(gamma), -sin(gamma), cos(gamma));
     
-
-    // squish ratio
-    // overall scale
-
     vec2 cr2 = posB + perp*r_outer;
 
-    // compensate total scale
-    // mat2 scale2 = mat2(r_outer, 0., 0., r_outer);
-
-    
+    // calculate the winding parameter
     float m = pi/alpha * 2.;
-    float delta = atan(v.y, v.x);
     mat2 rot3 = mat2(cos(alpha/2.), sin(alpha/2.), -sin(alpha/2.), cos(alpha/2.));
     float s1 = 1./(r_inner);
     mat2 scale = mat2(s1, 0., 0., s1);
@@ -221,8 +238,9 @@ vec4 drawVerts() {
     
     // float m = pi/alpha + 2.;
     float theta = atan(cr2.y, cr2.x);
-    float x = shape(theta, m).x - length(cr2);
-    float x2 = shape(theta, m).y - length(cr2);
+    vec2 res = shape(theta, m);
+    float x = res.x - length(cr2);
+    float x2 = res.y * .1 + res.x - length(cr2);
     float threshold = 0.;
     
     vec2 cr3 = rot * (posB + perp*r_outer);
@@ -230,16 +248,34 @@ vec4 drawVerts() {
     diff = abs(0. - diff);
     threshold = alpha/2.;
     aa = fwidth(diff);
-    float mask = (1. - smoothstep(threshold - aa, threshold + aa, diff));
+    float mask2 = (1. - smoothstep(threshold - aa, threshold + aa, diff));
+
+    // circle with "rounding" radius around posB
+    float dist2 = 1. - sdgCircle(posB, clampedRounding).x;
+    // a+= dist2;
+    aa = fwidth(dist2);
+    float mask3 = (smoothstep(1. - aa, 1. + aa, dist2));
 
     threshold = 0.;
     aa = fwidth(x);
-    a += (smoothstep(threshold - aa, threshold + aa, x)) * .54 * mask;
+    float shapeRes = (smoothstep(threshold - aa, threshold + aa, x));
+    if (cross(v, w) > 0.) {
+      mask += (1. - shapeRes) * mask3;
+    } else {
+      mask += shapeRes * mask2 * mask3;
+    }
     aa = fwidth(x2);
-    a += (smoothstep(threshold - aa, threshold + aa, x2)) * .12 * mask;
+    // a += (smoothstep(threshold - aa, threshold + aa, x2)) * mask2;
     // a += diff/pi;
   }
-  return vec4(vec3(0.), a);
+  // a = 0.;
+  vec2 p = vec2(v_texcoord.x, 1. - v_texcoord.y);
+  float d = 1. - sdPolygon(p, u_resolution.xy);
+  float threshold = 1.;
+  float aa = fwidth(d);
+  // mask = (smoothstep(threshold - aa, threshold + aa, d)) * mask;
+  // a += d;
+  return vec4(vec3(0.), a) + vec4(vec3(0.), mask) * .54;
 }
 
 void main() {
