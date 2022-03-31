@@ -14,6 +14,8 @@ uniform int selection;
 uniform float rounding;
 uniform float exponent;
 uniform vec2 mouse;
+uniform int fillShape;
+uniform int curvature;
 
 
 float sigmoid(float x) {
@@ -220,6 +222,10 @@ vec4 drawVerts() {
 
     float r_outer = clampedRounding / sin(beta);
     float r_inner = r_outer * -cos(beta);
+
+    // r_inner = max(0.005, r_inner);
+    // r_outer = max(0.00, r_outer);
+    // r_outer -= .1;
     vec2 cr = perp * r_outer; 
     // draw circle onion
     r = 0.001;
@@ -263,6 +269,8 @@ vec4 drawVerts() {
 
     //1px line at x = 0.
     float dist3 = abs(x) - 0.002 / r_inner;
+    // dist3 = max(dist3, 1. - mask3);
+    // dist3 *= mask;
     blueLine += (1. - smoothstep(threshold - aa, threshold + aa, dist3)) * mask3;
 
     float shapeRes = (smoothstep(threshold - aa, threshold + aa, x));
@@ -276,9 +284,20 @@ vec4 drawVerts() {
     if (cross(v, w) > 0.) {
       x2 = -res.y * .1 * 1./r_outer + res.x - length(cr2);
     }
-    dist3 = abs(x2) - 0.0005 / r_outer * exponent / r_inner;
-    redLine += (1. - smoothstep(threshold - aa, threshold + aa, dist3)) * mask2;
     aa = fwidth(x2);
+    float distx2 = abs(x2) - 0.001 * exponent / r_inner * aa;
+    redLine += (1. - smoothstep(threshold - aa, threshold + aa, distx2)) * mask2;
+    
+
+    // vector that points from posB to 
+    dist3 = distToSegment(vec2(0.,0.), posB - v*clampedRounding, posA + vv *.5);
+    aa = fwidth(dist3);
+    r = 0.002;
+    // blueLine += (1. - smoothstep(r - aa, r + aa, dist3));
+    dist3 = min(dist3, distToSegment(vec2(0.,0.), posB + w*clampedRounding, posC - ww *.5));
+    aa = fwidth(dist3);
+    // aa = fwidth(x);
+    blueLine += (1. - smoothstep(r - aa, r + aa, dist3));
     
     // a += diff/pi;
   }
@@ -287,7 +306,9 @@ vec4 drawVerts() {
   float d = 1. - sdPolygon(p, u_resolution.xy);
   float threshold = 1.;
   float aa = fwidth(d);
-  a += (smoothstep(threshold - aa, threshold + aa, d)) * .03;// * mask;
+  if (fillShape == 1) {
+    a += (smoothstep(threshold - aa, threshold + aa, d)) * .03;// * mask;
+  }
   // a += d;
   // #3B5FD7
   vec3 blue = vec3(.2313, .3725, .8431);
@@ -295,9 +316,12 @@ vec4 drawVerts() {
   vec3 red = vec3(.8823, 0.2784, 0.2784);
 
   vec4 outColor = vec4(0.);
+  blueLine = clamp(blueLine, 0., 1.);
   outColor += vec4(blue * blueLine, blueLine);
-  redLine = clamp(redLine - blueLine, 0., 1.) * .12;
-  outColor += vec4(red * redLine, redLine);
+  redLine = clamp(redLine - blueLine, 0., 1.) * 1.;
+  if (curvature == 1) {
+    outColor += vec4(red * redLine, redLine);
+  }
   outColor += vec4(vec3(0.), a); 
   //outColor += vec4(vec3(0.), mask) * .54;
   return outColor;

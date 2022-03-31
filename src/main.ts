@@ -26,32 +26,71 @@ function onresize() {
   canvas.style.height = h + "px";
 }
 
-const parameters = {
-  rounding: 1,
-  exponent: 5,
-}
-const gui = new dat.GUI();
-gui.add(parameters, "rounding", 0, 1).step(.01);
-gui.add(parameters, "exponent", 1, 13).step(.05);
-
-
 onresize();
 window.addEventListener("resize", onresize);
 
 let mouse = [0, 0];
-let verts = [[37.37646484375,488.5439453125],[141.662841796875,45.0313720703125],[419.1839599609375,480.25592041015625],[576.3153076171875,109.92706298828125],[605.9647216796875,494.7615661621094],[249.327392578125,566.5244750976562],[57.3822021484375,261.8018798828125]];
+let verts = [[163.22523498535156,326.7869873046875],[186.12249755859375,669.4827270507812],[584.3243408203125,603.1884155273438],[645.34130859375,151.23052978515625],[699.871337890625,661.955078125],[108.81747436523438,744.6851806640625],[85.14443969726562,227.58172607421875],[593.2460327148438,153.20361328125],[517.9650268554688,614.9060668945312],[487.58905029296875,269.3431396484375],[213.128173828125,310.4010009765625],[235.89398193359375,606.6873168945312]];
 (window as any).verts = verts;;
 let selection = -1;
+// error
+// verts = [[163.22523498535156,326.7869873046875],[186.12249755859375,669.4827270507812],[722.7049560546875,875.80029296875],[645.34130859375,151.23052978515625],[699.871337890625,661.955078125],[108.81747436523438,744.6851806640625],[85.14443969726562,227.58172607421875],[593.2460327148438,153.20361328125],[517.9650268554688,614.9060668945312],[487.58905029296875,269.3431396484375],[213.128173828125,310.4010009765625],[235.89398193359375,606.6873168945312]];
+const parameters = {
+  rounding: 1,
+  exponent: 5,
+  fill: true,
+  curvature: false,
+  mode: "pen",
+  reset: () => {
+    selection = -1;
+    setMode("pen");
+    verts = [];
+  }
+}
+setMode("pen");
+const gui = new dat.GUI();
+gui.add(parameters, "rounding", 0, 1).step(.01);
+gui.add(parameters, "exponent", 1, 13).step(.05);
+// gui.add(parameters, "fill");
+gui.add(parameters, "curvature");
+// gui.add(parameters, "mode", ["pen", "select"]);
+// reset button
+gui.add(parameters, "reset");
+
+function setMode(mode: "select"|"pen") {
+  if (mode == "select") {
+    canvas.style.cursor = "pointer";
+  }
+  else if (mode == "pen") {
+    canvas.style.cursor = "crosshair";
+  }
+  parameters.mode = mode;
+}
+
+let mouseDown = false;
+let topLeft = [0, 0];
+let bottomRight = [0, 0];
+let box = false;
 window.addEventListener("pointermove", e => {
   const x = e.clientX;
   const y = e.clientY;
   mouse = [x, y];
+  if(mouseDown && box) {
+    bottomRight = [x, y];
+    box = false;
+
+    // check the vertices to see if they are inside the box
+    verts.filter(v => {
+      const [x, y] = v;
+      return x >= topLeft[0] && x <= bottomRight[0] && y >= topLeft[1] && y <= bottomRight[1];
+    });
+  }
   if (mouseDown && selection >= 0) {
     // set last verrtex to [x, y]
     verts[selection] = [x, y];
   }
 });
-let mouseDown = false;
+
 canvas.addEventListener("pointerdown", e => {
   mouseDown = true;
   const x = e.clientX;
@@ -64,9 +103,22 @@ canvas.addEventListener("pointerdown", e => {
   });
   if (vert) {
     selection = verts.indexOf(vert);
-  } else {
-    verts.push([x, y]);
-    selection = verts.length - 1;
+  } 
+  else if (verts == [[-1, -1]]) {
+    selection = 0;
+  }
+  else {
+    if (parameters.mode === "pen") {
+      verts.push([x, y]);
+      selection = verts.length - 1;
+    }
+    else if (parameters.mode === "select") {
+      topLeft = [x, y];
+      bottomRight = [x, y];
+      selection = -1;
+      box = true;
+    }
+    
   }
 });
 window.addEventListener("pointerup", () => {
@@ -75,6 +127,20 @@ window.addEventListener("pointerup", () => {
   // const y = e.clientY;
   // set last vertex to [x, y]
   //verts[selection] = [x, y];
+});
+
+canvas.addEventListener("dblclick", () => {
+  // const x = e.clientX;
+  // const y = e.clientY;
+  // set mode to pen
+  setMode("pen");
+});
+
+// on esc
+window.addEventListener("keydown", e => {
+  if (e.key == "Escape") {
+    setMode("select");
+  }
 });
 
 // delete selection
@@ -98,12 +164,14 @@ function render() {
     u_projection: twgl.m4.identity(),
     u_resolution: [w, h],
     u_time: (Date.now() - start) / 1000,
-    verts: verts.flat(),
+    verts: verts.flat().length > 0 ? verts.flat() : [-1,-1],
     numVerts: verts.length,
     mouse: mouse,
     rounding: parameters.rounding,
     exponent: parameters.exponent,
-    selection: selection
+    selection: selection,
+    fillShape: parameters.fill ? 1 : 0,
+    curvature: parameters.curvature ? 1 : 0
   };
 
   gl.viewport(0, 0, canvas.width, canvas.height);
