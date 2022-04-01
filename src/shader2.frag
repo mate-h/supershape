@@ -16,7 +16,8 @@ uniform float exponent;
 uniform vec2 mouse;
 uniform int fillShape;
 uniform int curvature;
-
+uniform int debug;
+uniform float strokeWidth;
 
 float sigmoid(float x) {
   return 1.0 / (1.0 + exp(-x));
@@ -33,7 +34,7 @@ vec2 getCenter() {
 vec2 getPos(vec2 vert) {
   vec2 pos = vert / u_resolution;
   pos = vec2(pos.x, 1. - pos.y);
-  pos = pos*2. - 1.;
+  pos = pos * 2. - 1.;
   // draw a circle at each pos
   pos = pos - v_position.xy;
   return pos;
@@ -73,37 +74,35 @@ vec3 sdgCircleOnion(in vec2 p, in float cr, in float r) {
 }
 
 float sdPolygon(in vec2 p, vec2 s) {
-    float d = dot(p-verts[0]/s,p-verts[0]/s);
-    float res = 1.0;
-    for( int i=0; i<99; i++ ) {
-        if (i > numVerts - 2) {
+  float d = dot(p - verts[0] / s, p - verts[0] / s);
+  float res = 1.0;
+  for(int i = 0; i < 99; i++) {
+    if(i > numVerts - 2) {
           // distance
-          vec2 e = verts[i]/s - verts[0]/s;
-          vec2 w =    p - verts[0]/s;
-          vec2 b = w - e*clamp( dot(w,e)/dot(e,e), 0.0, 1.0 );
-          d = min( d, dot(b,b) );
+      vec2 e = verts[i] / s - verts[0] / s;
+      vec2 w = p - verts[0] / s;
+      vec2 b = w - e * clamp(dot(w, e) / dot(e, e), 0.0, 1.0);
+      d = min(d, dot(b, b));
 
           // winding number from http://geomalgorithms.com/a03-_inclusion.html
-          bvec3 cond = bvec3( p.y>=verts[0].y/s.y, 
-                              p.y <verts[i].y/s.y, 
-                              e.x*w.y>e.y*w.x );
-          if( all(cond) || all(not(cond)) ) res=-res;  
-          break;
-        }
+      bvec3 cond = bvec3(p.y >= verts[0].y / s.y, p.y < verts[i].y / s.y, e.x * w.y > e.y * w.x);
+      if(all(cond) || all(not(cond)))
+        res = -res;
+      break;
+    }
         // distance
-        vec2 e = verts[i]/s - verts[i + 1]/s;
-        vec2 w =    p - verts[i + 1]/s;
-        vec2 b = w - e*clamp( dot(w,e)/dot(e,e), 0.0, 1.0 );
-        d = min( d, dot(b,b) );
+    vec2 e = verts[i] / s - verts[i + 1] / s;
+    vec2 w = p - verts[i + 1] / s;
+    vec2 b = w - e * clamp(dot(w, e) / dot(e, e), 0.0, 1.0);
+    d = min(d, dot(b, b));
 
         // winding number from http://geomalgorithms.com/a03-_inclusion.html
-        bvec3 cond = bvec3( p.y>=verts[i + 1].y/s.y, 
-                            p.y <verts[i].y/s.y, 
-                            e.x*w.y>e.y*w.x );
-        if( all(cond) || all(not(cond)) ) res=-res;  
-    }
-    
-    return res*sqrt(d);
+    bvec3 cond = bvec3(p.y >= verts[i + 1].y / s.y, p.y < verts[i].y / s.y, e.x * w.y > e.y * w.x);
+    if(all(cond) || all(not(cond)))
+      res = -res;
+  }
+
+  return res * sqrt(d);
 }
 
 float lerp(float a, float b, float t) {
@@ -115,7 +114,7 @@ float map(float x, float a, float b, float c, float d) {
 }
 
 // distance function to the supershape
-vec2 shape(float theta, float m) {  
+vec4 shape(float theta, float m) {
   float n2 = exponent;
   float n3 = exponent;
 
@@ -158,15 +157,14 @@ vec2 shape(float theta, float m) {
   // abs(pow(r, 2) + 2*pow(d1, 2) - r*d2)/pow(pow(r, 2) + pow(d1, 2), 1.5)
   float kappa = abs(pow(r, 2.) + 2. * pow(d1, 2.) - r * d2) / pow(pow(r, 2.) + pow(d1, 2.), 1.5);
 
-  return vec2(r, kappa);
+  return vec4(r, kappa, d1, d2);
 }
-
 
 vec4 drawVerts() {
   float aspect = u_resolution.x / u_resolution.y;
   float a = 0.;
-  for (int i = 0; i < 100; i++) {
-    if (i >= numVerts) {
+  for(int i = 0; i < 100; i++) {
+    if(i >= numVerts) {
       break;
     }
     vec2 pos = getPos(verts[i]);
@@ -180,22 +178,23 @@ vec4 drawVerts() {
   float mask = 0.;
   float blueLine = 0.;
   float redLine = 0.;
-  for (int i = 0; i < 98; i++) {
-    if (i >= numVerts - 2) {
+  float d = 1.;
+  for(int i = 0; i < 98; i++) {
+    if(i >= numVerts - 2) {
       break;
     }
     vec2 posA = getPos(verts[i]);
     vec2 posB = getPos(verts[i + 1]);
     vec2 posC = getPos(verts[i + 2]);
-    float dist = distToSegment(vec2(0.,0.), posA, posB);
+    float dist = distToSegment(vec2(0., 0.), posA, posB);
     // r is 1px based on resolution
     float r = 0.002;//length(v_position.xy / u_resolution.xy) * 2.;
     float aa = fwidth(dist);
     a += (1. - smoothstep(r - aa, r + aa, dist)) * .12;
-    dist = distToSegment(vec2(0.,0.), posB, posC);
+    dist = distToSegment(vec2(0., 0.), posB, posC);
     aa = fwidth(dist);
     a += (1. - smoothstep(r - aa, r + aa, dist)) * .12;
-    
+
     // consider the angle between the two lines
     vec2 v = normalize(posB - posA);
     vec2 w = normalize(posC - posB);
@@ -205,20 +204,21 @@ vec4 drawVerts() {
     // rotate the line by 90 degrees
     const float pi = 3.141592653589793;
     vec2 perp = vec2(avg.y, -avg.x);
-    if (cross(v, w) > 0.) {
+    if(cross(v, w) > 0.) {
       perp = -perp;
     }
 
-    // draw a line at the angle and posB
-    dist = distToLine(vec2(0.,0.), posB, perp);
-    aa = fwidth(dist);
-    // a += (1. - smoothstep(r - aa, r + aa, dist)) * .12;
-
-    float beta = pi - alpha/2.;
+    float beta = pi - alpha / 2.;
 
     vec2 vv = posB - posA;
     vec2 ww = posC - posB;
-    float clampedRounding = min(min(length(vv)/2., length(ww)/2.), rounding);
+    float clampedRounding = min(min(length(vv) / 2., length(ww) / 2.), rounding);
+
+    // circle with "rounding" radius around posB
+    float dist2 = 1. - sdgCircle(posB, clampedRounding).x;
+    // a+= dist2;
+    aa = fwidth(dist2);
+    float maskRounding = (smoothstep(1. - aa, 1. + aa, dist2));
 
     float r_outer = clampedRounding / sin(beta);
     float r_inner = r_outer * -cos(beta);
@@ -228,86 +228,182 @@ vec4 drawVerts() {
     // r_outer -= .1;
     vec2 cr = perp * r_outer; 
     // draw circle onion
+
+    // draw a line at the angle and posB
+
+    if(debug == 1) {
+      dist = distToSegment(vec2(0., 0.), posB, posB + cr);
+      aa = fwidth(dist);
+      a += (1. - smoothstep(r - aa, r + aa, dist)) * .12;
+      dist = distToSegment(vec2(0., 0.), posB + cr, posB + w * clampedRounding);
+      aa = fwidth(dist);
+      a += (1. - smoothstep(r - aa, r + aa, dist)) * .12;
+      dist = distToSegment(vec2(0., 0.), posB + cr, posB - v * clampedRounding);
+      aa = fwidth(dist);
+      a += (1. - smoothstep(r - aa, r + aa, dist)) * .12;
+    }
+
     r = 0.001;
-    vec3 dis_gra = sdgCircleOnion(posB + cr, r_inner, r);
-    // a += (1. - smoothstep(r - aa, r + aa, dis_gra.x)) * .12;
-    
+    if(debug == 1) {
+      vec3 dis_gra = sdgCircleOnion(posB + cr, r_inner, r);
+      a += (1. - smoothstep(r - aa, r + aa, dis_gra.x)) * .12 * maskRounding;
+    }
+
     float gamma = -atan(perp.y, perp.x);
     mat2 rot = mat2(cos(gamma), sin(gamma), -sin(gamma), cos(gamma));
-    
-    vec2 cr2 = posB + perp*r_outer;
+
+    vec2 cr1 = posB + cr;
+    vec2 cr2 = posB + cr;
 
     // calculate the winding parameter
-    float m = pi/alpha * 2.;
-    mat2 rot3 = mat2(cos(alpha/2.), sin(alpha/2.), -sin(alpha/2.), cos(alpha/2.));
-    float s1 = 1./(r_inner);
+    float m = pi / alpha * 2.;
+    mat2 rot3 = mat2(cos(alpha / 2.), sin(alpha / 2.), -sin(alpha / 2.), cos(alpha / 2.));
+    float s1 = 1. / (r_inner);
     mat2 scale = mat2(s1, 0., 0., s1);
     cr2 = scale * rot * rot3 * cr2;
-    
+
     // float m = pi/alpha + 2.;
     float theta = atan(cr2.y, cr2.x);
-    vec2 res = shape(theta, m);
+    vec4 res = shape(theta, m);
     float x = res.x - length(cr2);
-    
+    // first derivative
+    float d1 = res.z;
+
     float threshold = 0.;
+
+    dist = length(cr2) - res.z;
+    aa = fwidth(dist);
+    // d += (1. - smoothstep(threshold - aa, threshold + aa, dist));
+    // d += length(cr2);
+
     
-    vec2 cr3 = rot * (posB + perp*r_outer);
+
+    vec2 cr3 = rot * (posB + perp * r_outer);
     float diff = atan(cr3.y, cr3.x);
     diff = abs(0. - diff);
-    threshold = alpha/2.;
+    threshold = alpha / 2.;
     aa = fwidth(diff);
     float mask2 = (1. - smoothstep(threshold - aa, threshold + aa, diff));
 
-    // circle with "rounding" radius around posB
-    float dist2 = 1. - sdgCircle(posB, clampedRounding).x;
-    // a+= dist2;
-    aa = fwidth(dist2);
-    float mask3 = (smoothstep(1. - aa, 1. + aa, dist2));
-
     threshold = 0.;
-    aa = fwidth(x);
-
-    //1px line at x = 0.
-    float dist3 = abs(x) - 0.002 / r_inner;
-    // dist3 = max(dist3, 1. - mask3);
-    // dist3 *= mask;
-    blueLine += (1. - smoothstep(threshold - aa, threshold + aa, dist3)) * mask3;
-
-    float shapeRes = (smoothstep(threshold - aa, threshold + aa, x));
-    if (cross(v, w) > 0.) {
-      mask += (1. - shapeRes) * mask3;
-    } else {
-      mask += shapeRes * mask2 * mask3;
-    }
-
-    float x2 = res.y * .1 * 1./r_outer + res.x - length(cr2);
-    if (cross(v, w) > 0.) {
-      x2 = -res.y * .1 * 1./r_outer + res.x - length(cr2);
+    float x2 = res.y * .1 * 1. / r_outer + res.x - length(cr2);
+    if(cross(v, w) > 0.) {
+      x2 = -res.y * .1 * 1. / r_outer + res.x - length(cr2);
     }
     aa = fwidth(x2);
     float distx2 = abs(x2) - 0.001 * exponent / r_inner * aa;
-    redLine += (1. - smoothstep(threshold - aa, threshold + aa, distx2)) * mask2;
-    
+    if(exponent > 1.0 && r_inner > 0.001) {
+      redLine += (1. - smoothstep(threshold - aa, threshold + aa, distx2)) * mask2;
+    }
+
+    aa = fwidth(x);
+
+    // euclidian distance  to
+    if(debug == 1 && 1 == 0) {
+      const int samples = 9;
+      dist = 0.;
+      vec2 prevPos = vec2(-1., -1.);
+      for(int i = 0; i < samples + 1; i++) {
+        float t = float(i - 1) / float(samples - 1);
+      // vec2 start = gamma;
+        float angle = alpha * t;
+      // sample point along curve
+        vec4 s = shape(angle, m);
+        float val = s.x - length(cr2);
+      // draw point along the sample
+        vec2 pos = vec2(cr2.x - s.x * cos(angle), cr2.y - s.x * sin(angle));
+        if(i > 1) {
+          float dd = distToSegment(vec2(0., 0.), prevPos, pos) * r_inner;
+          d = min(d, dd);
+        }
+
+        prevPos = pos;
+        float dd = length(pos.xy * vec2(aspect, 1.));
+        r = 0.005 / r_inner;
+        aa = fwidth(dd);
+        if(i > 0) {
+          a += (1. - smoothstep(r - aa, r + aa, dd)) * .54;
+        }
+      }
+      r = 0.002;
+      aa = fwidth(d);
+
+      a += (1. - smoothstep(r - aa, r + aa, d)) * .12;
+    }
+
+    // dist = s.x - length(cr2);
+    // d = min(d, res.z);
+
+    float dist3 = abs(x) - 0.002 / r_inner;
+
+    if(exponent == 1.0) {
+      dist = distToSegment(vec2(0., 0.), posB - v * clampedRounding, posB + w * clampedRounding);
+      r = 0.002;
+      aa = fwidth(dist);
+      blueLine += (1. - smoothstep(r - aa, r + aa, dist)) * maskRounding;
+    } else if(r_inner > 0.001) {
+      aa = fwidth(dist3);
+      blueLine += (1. - smoothstep(threshold - aa, threshold + aa, dist3)) * maskRounding;
+    }
+    float newR = r_inner + 0.002 * (strokeWidth - 1.);
+    float td = 1.;
+    if(newR > 0.001) {
+      cr2 = posB + cr;
+      s1 = 1. / (newR);
+      scale = mat2(s1, 0., 0., s1);
+      cr2 = scale * rot * rot3 * cr2;
+      theta = atan(cr2.y, cr2.x);
+      vec4 res2 = shape(theta, m);
+      x = res2.x - length(cr2);
+
+      td = x;
+      dist3 = abs(x) - 0.002 / newR;
+      aa = fwidth(dist3);
+      // blueLine += (1. - smoothstep(threshold - aa, threshold + aa, dist3)) * mask2;
+    }
+    newR = r_inner - 0.002 * (strokeWidth - 1.);
+    if(newR > 0.001) {
+      cr2 = posB + cr;
+      s1 = 1. / (newR);
+      scale = mat2(s1, 0., 0., s1);
+      cr2 = scale * rot * rot3 * cr2;
+      theta = atan(cr2.y, cr2.x);
+      vec4 res2 = shape(theta, m);
+      x = res2.x - length(cr2);
+      td = min(td, -x);
+      dist3 = abs(x) - 0.002 / newR;
+      aa = fwidth(dist3);
+      // blueLine += (1. - smoothstep(threshold - aa, threshold + aa, dist3)) * mask2;
+    }
+    // aa = fwidth(td);
+    // blueLine += (smoothstep(threshold - aa, threshold + aa, td)) * mask2;
 
     // vector that points from posB to 
-    dist3 = distToSegment(vec2(0.,0.), posB - v*clampedRounding, posA + vv *.5);
+    dist3 = distToSegment(vec2(0., 0.), posB - v * clampedRounding, posA + vv * .5);
     aa = fwidth(dist3);
-    r = 0.002;
+    r = 0.002 * (strokeWidth - 1.);
     // blueLine += (1. - smoothstep(r - aa, r + aa, dist3));
-    dist3 = min(dist3, distToSegment(vec2(0.,0.), posB + w*clampedRounding, posC - ww *.5));
-    aa = fwidth(dist3);
+    dist3 = min(dist3, distToSegment(vec2(0., 0.), posB + w * clampedRounding, posC - ww * .5));
+
+    // td = mix(r - abs(dist3), td, mask2);
+    // aa = fwidth(dist3);
     // aa = fwidth(x);
-    blueLine += (1. - smoothstep(r - aa, r + aa, dist3));
-    
+    // blueLine += (1. - smoothstep(r - aa, r + aa, dist3));
+
+    dist3 = max(0.002, r) - abs(dist3);
+    float aa1 = fwidth(dist3);
+    aa = fwidth(td);
+    blueLine = max(blueLine, mix(smoothstep(-aa1, +aa1, dist3), smoothstep(-aa, +aa, td), mask2));
+
     // a += diff/pi;
   }
   // a = 0.;
   vec2 p = vec2(v_texcoord.x, 1. - v_texcoord.y);
-  float d = 1. - sdPolygon(p, u_resolution.xy);
+  float dist = 1. - sdPolygon(p, u_resolution.xy);
   float threshold = 1.;
-  float aa = fwidth(d);
-  if (fillShape == 1) {
-    a += (smoothstep(threshold - aa, threshold + aa, d)) * .03;// * mask;
+  float aa = fwidth(dist);
+  if(fillShape == 1) {
+    a += (smoothstep(threshold - aa, threshold + aa, dist)) * .03;// * mask;
   }
   // a += d;
   // #3B5FD7
@@ -316,15 +412,21 @@ vec4 drawVerts() {
   vec3 red = vec3(.8823, 0.2784, 0.2784);
 
   vec4 outColor = vec4(0.);
-  blueLine = clamp(blueLine, 0., 1.);
-  outColor += vec4(blue * blueLine, blueLine);
-  redLine = clamp(redLine - blueLine, 0., 1.) * 1.;
-  if (curvature == 1) {
-    outColor += vec4(red * redLine, redLine);
+  if(curvature == 1) {
+    blueLine = clamp(blueLine - redLine, 0., 1.);
+  } else {
+    blueLine = clamp(blueLine, 0., 1.);
   }
-  outColor += vec4(vec3(0.), a); 
+  outColor += vec4(blue * blueLine, blueLine);
+  redLine = clamp(redLine, 0., 1.);
+  if(curvature == 1) {
+    vec4 c = vec4(red * redLine, redLine);
+    outColor += c;
+  }
+  outColor = mix(outColor, vec4(vec3(0.), 1.), a);
   //outColor += vec4(vec3(0.), mask) * .54;
   return outColor;
+  // return vec4(vec3(0.), a) + vec4(vec3(0.), d);
 }
 
 void main() {

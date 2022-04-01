@@ -36,15 +36,18 @@ verts = verts.map(([a,b]) => {
   return [a*s, b*s];
 });
 
-(window as any).verts = verts;
+
 let selection = -1;
 // error
-// verts = [[163.22523498535156,326.7869873046875],[186.12249755859375,669.4827270507812],[722.7049560546875,875.80029296875],[645.34130859375,151.23052978515625],[699.871337890625,661.955078125],[108.81747436523438,744.6851806640625],[85.14443969726562,227.58172607421875],[593.2460327148438,153.20361328125],[517.9650268554688,614.9060668945312],[487.58905029296875,269.3431396484375],[213.128173828125,310.4010009765625],[235.89398193359375,606.6873168945312]];
+// verts = [[164.105712890625,797.6732177734375],[191.82388305664062,192.7698974609375],[707.2841796875,392.97503662109375]];
+(window as any).verts = verts;
 const parameters = {
   rounding: 1,
   exponent: 5,
+  stroke: 3,
   fill: true,
   curvature: false,
+  debug: false,
   mode: "pen",
   reset: () => {
     selection = -1;
@@ -56,8 +59,10 @@ setMode("pen");
 const gui = new dat.GUI();
 gui.add(parameters, "rounding", 0, 1).step(.01);
 gui.add(parameters, "exponent", 1, 13).step(.05);
+gui.add(parameters, "stroke", 1, 20).step(.1);
 // gui.add(parameters, "fill");
 gui.add(parameters, "curvature");
+gui.add(parameters, "debug");
 // gui.add(parameters, "mode", ["pen", "select"]);
 // reset button
 gui.add(parameters, "reset");
@@ -116,6 +121,7 @@ canvas.addEventListener("pointerdown", e => {
     if (parameters.mode === "pen") {
       verts.push([x, y]);
       selection = verts.length - 1;
+      (window as any).verts = verts;
     }
     else if (parameters.mode === "select") {
       topLeft = [x, y];
@@ -176,7 +182,9 @@ function render() {
     exponent: parameters.exponent,
     selection: selection,
     fillShape: parameters.fill ? 1 : 0,
-    curvature: parameters.curvature ? 1 : 0
+    curvature: parameters.curvature ? 1 : 0,
+    debug: parameters.debug ? 1 : 0,
+    strokeWidth: parameters.stroke,
   };
 
   gl.viewport(0, 0, canvas.width, canvas.height);

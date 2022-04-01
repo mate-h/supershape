@@ -3,7 +3,10 @@
 See https://observablehq.com/@mateh/continuous-curvature
 
 ## Todos
-Now the shader seems to be working well. New features to implement:
-- `cornerCurveExpansionFactor`
-- stroke width using cornerCurveExpansionFactor
-- adjust rounding per-vertex with gizmo, maxiumum rounding per-vertex
+Remains to be implemented:
+- [x] `cornerCurveExpansionFactor`: stroke width using adjusted inner radius and continuous curvature
+- [ ] stroke width using euclidean distance to curve
+- [ ] performance improvements: 1 fragment per-vertex 
+- [ ] adjust rounding per-vertex with gizmo, maxiumum rounding per-vertex
+- [ ] box select vertices
+- [ ] TypeScript and SVG implementation with bezier approximation
