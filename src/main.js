@@ -733,6 +733,7 @@ const PathInput = ({ value = [], draw = () => {}, closed = false } = {}) => {
     mode = "add";
     set(node, value);
   };
+  node.draw = drawPath;
   node.appendChild(svg);
   // set style
   node.style.border = "1px solid var(--gray-400)";
@@ -751,16 +752,6 @@ const parameters = {
   curvePlot: true
 };
 
-const gui = new dat.GUI();
-gui.add(parameters, "exponent", 0, 1).step(0.01);
-gui.add(parameters, "strokeWidth", 0, 10).step(0.1);
-gui.add(parameters, "rounding", 0, 100).step(1);
-gui.add(parameters, "strokeShape");
-gui.addColor(parameters, "strokeColor");
-gui.add(parameters, "fillShape");
-gui.addColor(parameters, "fillColor");
-gui.add(parameters, "curvePlot");
-
 const node = PathInput({
   value: initValue,
   closed: true,
@@ -770,6 +761,16 @@ const node = PathInput({
     return Array.from(svg.childNodes);
   },
 });
+
+const gui = new dat.GUI();
+gui.add(parameters, "exponent", 0, 1).step(0.01).onChange(node.draw);
+gui.add(parameters, "strokeWidth", 0, 10).step(0.1).onChange(node.draw);
+gui.add(parameters, "rounding", 0, 100).step(1).onChange(node.draw);
+gui.add(parameters, "strokeShape").onChange(node.draw);
+gui.addColor(parameters, "strokeColor").onChange(node.draw);
+gui.add(parameters, "fillShape").onChange(node.draw);
+gui.addColor(parameters, "fillColor").onChange(node.draw);
+gui.add(parameters, "curvePlot").onChange(node.draw);
 
 // clear button
 gui.add(node, "clear");
