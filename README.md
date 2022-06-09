@@ -1,6 +1,8 @@
 # supershapes
 
-See https://observablehq.com/@mateh/continuous-curvature
+See https://observablehq.com/@mateh/bezier-continuous-curves  
+
+Also see https://observablehq.com/@mateh/continuous-curvature
 
 ## Todos
 Remains to be implemented:
