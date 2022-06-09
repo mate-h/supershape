@@ -39,12 +39,12 @@ verts = verts.map(([a,b]) => {
 
 let selection = -1;
 // error
-// verts = [[164.105712890625,797.6732177734375],[191.82388305664062,192.7698974609375],[707.2841796875,392.97503662109375]];
+verts = [[171.17417907714844,662.4534301757812],[215.95834350585938,217.0283203125],[730.5343017578125,342.7961120605469]];
 (window as any).verts = verts;
 const parameters = {
   rounding: 1,
   exponent: 5,
-  stroke: 3,
+  stroke: 50,
   fill: true,
   curvature: false,
   debug: false,

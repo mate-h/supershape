@@ -114,9 +114,9 @@ float map(float x, float a, float b, float c, float d) {
 }
 
 // distance function to the supershape
-vec4 shape(float theta, float m) {
-  float n2 = exponent;
-  float n3 = exponent;
+vec4 shape(float theta, float m, float e) {
+  float n2 = exponent * e;
+  float n3 = exponent * e;
 
   // curvature slope is calculated from a series of datapoints 
   // where the approximate integral of kappa(theta) minimizes the curvature
@@ -124,7 +124,7 @@ vec4 shape(float theta, float m) {
   // FindFit[data,a*x^2, {a},x] (Wolfram Alpha)
   // slope {a->0.0625148} 
   float curvatureSlope = 0.0625148;
-  float n1 = curvatureSlope * pow(m, 2.) * exponent;
+  float n1 = curvatureSlope * pow(m, 2.) * exponent * e;
 
   // calculate the supershape size from n1
   float a = 1.;
@@ -264,7 +264,7 @@ vec4 drawVerts() {
 
     // float m = pi/alpha + 2.;
     float theta = atan(cr2.y, cr2.x);
-    vec4 res = shape(theta, m);
+    vec4 res = shape(theta, m, 1.);
     float x = res.x - length(cr2);
     // first derivative
     float d1 = res.z;
@@ -308,7 +308,7 @@ vec4 drawVerts() {
       // vec2 start = gamma;
         float angle = alpha * t;
       // sample point along curve
-        vec4 s = shape(angle, m);
+        vec4 s = shape(angle, m, 1.);
         float val = s.x - length(cr2);
       // draw point along the sample
         vec2 pos = vec2(cr2.x - s.x * cos(angle), cr2.y - s.x * sin(angle));
@@ -348,12 +348,13 @@ vec4 drawVerts() {
     float newR = r_inner + 0.002 * (strokeWidth - 1.);
     float td = 1.;
     if(newR > 0.001) {
+      
       cr2 = posB + cr;
       s1 = 1. / (newR);
       scale = mat2(s1, 0., 0., s1);
       cr2 = scale * rot * rot3 * cr2;
       theta = atan(cr2.y, cr2.x);
-      vec4 res2 = shape(theta, m);
+      vec4 res2 = shape(theta, m, 1.);
       x = res2.x - length(cr2);
 
       td = x;
@@ -363,12 +364,17 @@ vec4 drawVerts() {
     }
     newR = r_inner - 0.002 * (strokeWidth - 1.);
     if(newR > 0.001) {
+      // r_outer = .4 / sin(beta);
+      // r_inner = r_outer * -cos(beta);
+      // newR = r_inner - 0.002 * (strokeWidth - 1.);
+      // cr = perp * r_outer;
+
       cr2 = posB + cr;
       s1 = 1. / (newR);
       scale = mat2(s1, 0., 0., s1);
       cr2 = scale * rot * rot3 * cr2;
       theta = atan(cr2.y, cr2.x);
-      vec4 res2 = shape(theta, m);
+      vec4 res2 = shape(theta, m, 1.);
       x = res2.x - length(cr2);
       td = min(td, -x);
       dist3 = abs(x) - 0.002 / newR;
@@ -407,9 +413,9 @@ vec4 drawVerts() {
   }
   // a += d;
   // #3B5FD7
-  vec3 blue = vec3(.2313, .3725, .8431);
+  vec3 blue = vec3(.2313, .3725, .8431) * 2.;
   // #E14747
-  vec3 red = vec3(.8823, 0.2784, 0.2784);
+  vec3 red = vec3(.8823, 0.2784, 0.2784) * 2.;
 
   vec4 outColor = vec4(0.);
   if(curvature == 1) {
@@ -423,7 +429,7 @@ vec4 drawVerts() {
     vec4 c = vec4(red * redLine, redLine);
     outColor += c;
   }
-  outColor = mix(outColor, vec4(vec3(0.), 1.), a);
+  outColor = mix(outColor, vec4(vec3(1.), 1.), a);
   //outColor += vec4(vec3(0.), mask) * .54;
   return outColor;
   // return vec4(vec3(0.), a) + vec4(vec3(0.), d);
