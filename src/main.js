@@ -1,6 +1,7 @@
 import dat from "dat.gui";
 import initValue from "./m.json";
 import { html } from "htl";
+import { getShapeFunction, sub, dot, add, length, normalize, cross, mul } from "..";
 /**
  * Return the SVG path for a continous curve for a set of points.
  *
@@ -196,30 +197,30 @@ function calculatePath(points, parameters = {}) {
     return error;
   }
 
-  // helper functions
-  function sub(a, b) {
-    return { x: a.x - b.x, y: a.y - b.y };
-  }
-  function dot(a, b) {
-    return a.x * b.x + a.y * b.y;
-  }
+  // // helper functions
+  // function sub(a, b) {
+  //   return { x: a.x - b.x, y: a.y - b.y };
+  // }
+  // function dot(a, b) {
+  //   return a.x * b.x + a.y * b.y;
+  // }
 
-  function add(a, b) {
-    return { x: a.x + b.x, y: a.y + b.y };
-  }
-  function mul(a, b) {
-    return { x: a.x * b, y: a.y * b };
-  }
-  function length(a) {
-    return Math.sqrt(a.x * a.x + a.y * a.y);
-  }
-  function normalize(a) {
-    const l = length(a);
-    return { x: a.x / l, y: a.y / l };
-  }
-  function cross(a, b) {
-    return a.x * b.y - a.y * b.x;
-  }
+  // function add(a, b) {
+  //   return { x: a.x + b.x, y: a.y + b.y };
+  // }
+  // function mul(a, b) {
+  //   return { x: a.x * b, y: a.y * b };
+  // }
+  // function length(a) {
+  //   return Math.sqrt(a.x * a.x + a.y * a.y);
+  // }
+  // function normalize(a) {
+  //   const l = length(a);
+  //   return { x: a.x / l, y: a.y / l };
+  // }
+  // function cross(a, b) {
+  //   return a.x * b.y - a.y * b.x;
+  // }
 
   let path = "";
   let debugP = "";
@@ -240,63 +241,11 @@ function calculatePath(points, parameters = {}) {
     const vn = normalize(v);
     const wn = normalize(w);
 
-    const alpha = Math.acos(dot(vn, wn));
-    const beta = Math.PI - alpha / 2;
-    let phat = normalize(add(vn, wn));
-    phat = { x: phat.y, y: -phat.x };
-    if (cross(vn, wn) > 0) {
-      phat = mul(phat, -1);
-    }
-
-    // angle of phat relative to screen space coordinates
-    const gamma = Math.atan2(phat.y, phat.x) + beta;
-
     // Calculate outer radius by rounding parameter (k). This value is clamped to half of the segment length.
     const k = rounding;
     const clamped = Math.min(Math.min(k, length(v) / 2), length(w) / 2);
-    // move the center infinitely far away from b as the angle between v and w approaches 0
-    const ro = clamped / Math.sin(beta);
 
-    // inner radius
-    const ri = -ro * Math.cos(beta);
-
-    // Center of the inscribed circle (inner circle)
-    const q = add(b, mul(phat, ro));
-
-    // Winding parameter
-    const m = (2 * Math.PI) / alpha;
-
-    // create the supershape function specified by the three points
-    const shapeFn = (theta) => {
-      // calculate radius relative to the center of the inner circle
-      const { r, kappa } = shape(theta, m);
-
-      function getPoint(radius) {
-        // calculate cartesian coordinates
-        // scale inversely proportional to ri
-        const x = radius * Math.cos(theta);
-        const y = radius * Math.sin(theta);
-
-        // rotate back to screen space around
-        const xs = x * Math.cos(gamma) - y * Math.sin(gamma);
-        const ys = x * Math.sin(gamma) + y * Math.cos(gamma);
-        return { x: xs + q.x, y: ys + q.y };
-      }
-
-      // get the point on the curve
-      const curve = getPoint(r * ri);
-      const curvature = getPoint(r * ri + kappa * 8);
-
-      return { curve, curvature };
-    };
-
-    // circle at the center of the inner circle
-    const r = 2;
-    const qq = add(b, mul(phat, clamped));
-    const circle = `M ${qq.x} ${qq.y} m ${-r} 0 a ${r} ${r} 0 1 0 ${
-      r * 2
-    } 0 a ${r} ${r} 0 1 0 ${-r * 2} 0`;
-    debugP += circle;
+    const shapeFn = getShapeFunction(a, b, c, clamped, exponent);
 
     if (exponent === 0 || cross(vn, wn) === 0) {
       // return straight line
@@ -317,7 +266,8 @@ function calculatePath(points, parameters = {}) {
       if (winding > 0) {
         t = 1 - t;
       }
-      const { curve, curvature } = shapeFn(t * alpha);
+      const { curve, curvature, radius, getPoint } = shapeFn(t);
+      const curvaturePlot = getPoint(radius + curvature * 8);
       function f(n) {
         return n.toFixed(2);
       }
@@ -325,8 +275,8 @@ function calculatePath(points, parameters = {}) {
       try {
         let cmd = "L";
         if (j === 0 || curveP.length === 0) cmd = "M";
-        if (!isNaN(curvature.x) && !isNaN(curvature.y)) {
-          curveP += `${cmd}${f(curvature.x)} ${f(curvature.y)}`;
+        if (!isNaN(curvaturePlot.x) && !isNaN(curvaturePlot.y)) {
+          curveP += `${cmd}${f(curvaturePlot.x)} ${f(curvaturePlot.y)}`;
         }
       } catch (e) {
         //
@@ -616,6 +566,7 @@ const PathInput = ({ value = [], draw = () => {}, closed = false } = {}) => {
       }
     } catch (e) {
       // silent ignore
+      console.error(e);
     }
 
     if (mode === "add" || mode === "close") {
@@ -756,7 +707,6 @@ const node = PathInput({
   value: initValue,
   closed: true,
   draw: (node, value, closed) => {
-    console.log(value);
     const svg = calculatePath(value, {...parameters, closed});
     return Array.from(svg.childNodes);
   },

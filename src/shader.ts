@@ -1,8 +1,8 @@
 import "./style.css";
 import * as twgl from "twgl.js";
-import vs from "./shader.vert";
+import vs from "./shader.vert?raw";
 // import fs from "./shader.frag";
-import fs2 from "./shader2.frag";
+import fs2 from "./shader2.frag?raw";
 import dat from "dat.gui";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -114,6 +114,7 @@ canvas.addEventListener("pointerdown", e => {
   if (vert) {
     selection = verts.indexOf(vert);
   } 
+  // @ts-ignore
   else if (verts == [[-1, -1]]) {
     selection = 0;
   }
