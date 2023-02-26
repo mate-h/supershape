@@ -1,8 +1,35 @@
-# supershapes
+# supershape
 
-See https://observablehq.com/@mateh/bezier-continuous-curves  
+This codebase implements an approximate curve with a set of control points and parameters that has smooth transitions in the curvature.
 
-Also see https://observablehq.com/@mateh/continuous-curvature
+Details: https://observablehq.com/@mateh/bezier-continuous-curves  
+
+Also see: https://observablehq.com/@mateh/continuous-curvature
+
+## Usage
+
+```bash
+npm install supershape
+```
+
+```js
+import { getShapeFunction } from 'supershape'
+
+let points = [
+  {x: 0, y: 0},
+  {x: 1, y: 0},
+  {x: 1, y: 1},
+]
+
+const rounding = 20;
+const exponent = 5;
+const shapeFunction = getShapeFunction(points[0], points[1], points[2], rounding, exponent);
+
+// get points on the curve
+const t = 0.5; // t is between 0 and 1
+const point = shapeFunction(t);
+console.log("x: " + point.x + ", y: " + point.y);
+```
 
 ## Todos
 Remains to be implemented:
