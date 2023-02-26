@@ -27,8 +27,8 @@ const shapeFunction = getShapeFunction(points[0], points[1], points[2], rounding
 
 // get points on the curve
 const t = 0.5; // t is between 0 and 1
-const point = shapeFunction(t);
-console.log("x: " + point.x + ", y: " + point.y);
+const {curve} = shapeFunction(t);
+console.log("x: " + curve.x + ", y: " + curve.y);
 ```
 
 ## Todos
