@@ -31,7 +31,7 @@ const {curve} = shapeFunction(t);
 console.log("x: " + curve.x + ", y: " + curve.y);
 ```
 
-## Javaescript implementation
+## Javascript implementation
 
 https://github.com/mate-h/supershape/blob/master/src/main.js
 
