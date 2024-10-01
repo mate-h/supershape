@@ -1,7 +1,7 @@
 import "./style.css";
 import * as twgl from "twgl.js";
 import vs from "./shader.vert?raw";
-// import fs from "./shader.frag";
+// import fs from "./shader.frag?raw";
 import fs2 from "./shader2.frag?raw";
 import dat from "dat.gui";
 
